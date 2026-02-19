@@ -1,0 +1,7 @@
+{
+  "name": "Aditya University Quiz Portal",
+  "description": "A comprehensive quiz platform for Aditya University students and administrators, featuring AI-powered explanations, performance analytics, and interactive learning tools.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
