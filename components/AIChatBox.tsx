@@ -24,8 +24,10 @@ export const AIChatBox: React.FC = () => {
     if ((window as any).aistudio) {
       try {
         await (window as any).aistudio.openSelectKey();
-        // Clear auth error message if it was the last message
-        setMessages(prev => prev.filter(m => !m.content.includes("AUTHENTICATION_REQUIRED") && !m.content.includes("Security Check")));
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: "Configuration Updated: I'm now using your selected API key. How can I help with your studies?" 
+        }]);
       } catch (e) {
         console.error("Key selection failed", e);
       }
@@ -42,20 +44,12 @@ export const AIChatBox: React.FC = () => {
 
     try {
       const response = await chatWithAI(input, messages);
-      
-      if (response === "AUTHENTICATION_REQUIRED") {
-        setMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: "Security Check: The campus AI session needs a valid key. Please click the 'Key' icon above to authenticate with your own academic key." 
-        }]);
-      } else {
-        const aiMsg: ChatMessage = { role: 'assistant', content: response };
-        setMessages(prev => [...prev, aiMsg]);
-      }
+      const aiMsg: ChatMessage = { role: 'assistant', content: response };
+      setMessages(prev => [...prev, aiMsg]);
     } catch (err) {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: "Sorry, the campus AI server is currently unreachable. Please try again later." 
+        content: "I'm currently having trouble connecting. This may be due to the campus key quota. Please try using the 'Key' icon above to configure your own academic key." 
       }]);
     } finally {
       setIsLoading(false);
@@ -65,19 +59,21 @@ export const AIChatBox: React.FC = () => {
   return (
     <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ease-in-out ${isOpen ? 'w-80 md:w-96' : 'w-16'}`}>
       {isOpen ? (
-        <div className="bg-white rounded-3xl h-[500px] flex flex-col shadow-2xl overflow-hidden border border-slate-200 animate-slideUp">
-          <div className="bg-blue-600 p-5 flex justify-between items-center text-white">
+        <div className="bg-white rounded-3xl h-[550px] flex flex-col shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] overflow-hidden border border-slate-200 animate-slideUp">
+          <div className="bg-slate-900 p-5 flex justify-between items-center text-white">
             <div className="flex items-center gap-3">
-              <IconRobot className="w-5 h-5 text-white" />
+              <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center">
+                <IconRobot className="w-5 h-5 text-white" />
+              </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm">Aditya AI Assistant</span>
-                <span className="text-[9px] uppercase tracking-widest opacity-70">Academic Support</span>
+                <span className="font-bold text-sm tracking-tight">Academic Assistant</span>
+                <span className="text-[8px] uppercase tracking-widest text-blue-400 font-black">Aditya Univ AI</span>
               </div>
             </div>
             <div className="flex gap-2">
               <button 
                 onClick={handleOpenKeySelector}
-                title="Configure AI Key"
+                title="Configure personal key"
                 className="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,20 +88,17 @@ export const AIChatBox: React.FC = () => {
           
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-slate-50">
             {messages.length === 0 && (
-              <div className="text-center text-slate-400 mt-10">
-                <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                   <IconRobot className="w-6 h-6 text-blue-600" />
-                </div>
-                <p className="text-sm font-bold text-slate-600">Ask me about your courses!</p>
-                <p className="text-[10px] mt-2 text-slate-400 uppercase tracking-[0.2em]">Verified Academic Engine</p>
+              <div className="text-center text-slate-400 mt-20">
+                <p className="text-sm font-bold text-slate-500 mb-2">How can I help you study?</p>
+                <p className="text-[9px] uppercase tracking-[0.2em]">Verified Academic Model</p>
               </div>
             )}
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] p-4 rounded-[1.5rem] text-sm shadow-sm leading-relaxed ${
+                <div className={`max-w-[85%] p-4 rounded-[1.5rem] text-sm leading-relaxed ${
                   m.role === 'user' 
-                    ? 'bg-blue-600 text-white rounded-tr-none' 
-                    : 'bg-white text-slate-800 rounded-tl-none border border-slate-100'
+                    ? 'bg-blue-600 text-white rounded-tr-none shadow-lg shadow-blue-100' 
+                    : 'bg-white text-slate-800 rounded-tl-none border border-slate-100 shadow-sm'
                 }`}>
                   {m.content}
                 </div>
@@ -114,9 +107,9 @@ export const AIChatBox: React.FC = () => {
             {isLoading && (
               <div className="flex justify-start">
                 <div className="bg-white p-4 rounded-[1.5rem] rounded-tl-none flex gap-2 items-center border border-slate-100 shadow-sm">
-                  <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                  <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce"></div>
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
                 </div>
               </div>
             )}
@@ -128,16 +121,16 @@ export const AIChatBox: React.FC = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Type your academic query..."
+              placeholder="Ask an academic question..."
               className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm focus:outline-none focus:border-blue-600 focus:bg-white transition-all text-slate-800"
             />
             <button 
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              className={`p-3 rounded-2xl transition-all active:scale-95 shadow-lg ${
+              className={`p-3 rounded-2xl transition-all shadow-lg ${
                 !input.trim() || isLoading 
                 ? 'bg-slate-100 text-slate-300' 
-                : 'bg-blue-600 text-white shadow-blue-100 hover:bg-blue-700'
+                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
               }`}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,10 +142,10 @@ export const AIChatBox: React.FC = () => {
       ) : (
         <button 
           onClick={() => setIsOpen(true)}
-          className="w-16 h-16 bg-blue-600 rounded-2xl shadow-2xl flex items-center justify-center hover:scale-110 transition-all border-2 border-white shadow-blue-200 group"
+          className="w-16 h-16 bg-slate-900 rounded-[1.5rem] shadow-2xl flex items-center justify-center hover:scale-110 transition-all border-2 border-white group"
         >
           <IconRobot className="w-8 h-8 text-white group-hover:rotate-12 transition-transform" />
-          <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 border-2 border-white rounded-full animate-pulse"></div>
         </button>
       )}
     </div>

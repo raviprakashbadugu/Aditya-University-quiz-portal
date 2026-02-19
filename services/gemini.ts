@@ -2,103 +2,74 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 /**
- * World-class initialization logic.
- * We create a new instance right before use to ensure we catch the latest 
- * environment variables (injected at build) or user-selected keys.
+ * AI Connection Status Helper
  */
-const getAIInstance = () => {
-  const apiKey = process.env.API_KEY;
-  
-  if (!apiKey || apiKey === "undefined" || apiKey.trim() === "") {
-    throw new Error("MISSING_API_KEY");
-  }
-
-  return new GoogleGenAI({ apiKey });
+const isAiConfigured = () => {
+  const key = process.env.API_KEY;
+  return key && key !== "undefined" && key.trim().length > 10;
 };
 
 /**
- * Handles errors and provides recovery paths for students.
+ * Chat with AI (Stubbed for future development)
  */
-export const handleAIError = async (error: any) => {
-  console.error("Aditya AI Error Log:", error);
-  
-  const errorMessage = error.message || "";
-  const status = error.status || (error.response ? error.response.status : null);
-
-  // If the key is invalid, expired, or not found, prompt for a new one
-  if (errorMessage.includes("entity was not found") || 
-      errorMessage.includes("API key not valid") || 
-      status === 401 || status === 403) {
-    
-    if (typeof window !== 'undefined' && (window as any).aistudio) {
-      // Per instructions: Trigger selection and assume success to avoid race conditions
-      try {
-        await (window as any).aistudio.openSelectKey();
-        return "RETRY_WITH_NEW_KEY";
-      } catch (e) {
-        return "Authentication required. Please click the key icon to provide an API key.";
-      }
-    }
-  }
-
-  if (status === 429) {
-    return "The campus AI is currently busy. Please wait a moment before asking another question.";
-  }
-
-  return "I'm having trouble connecting to the academic brain. Please check your connection.";
-};
-
 export const chatWithAI = async (message: string, history: any[]) => {
+  if (!isAiConfigured()) {
+    return "AI Assistant is currently in 'Option Only' mode. Functional connectivity has been removed as per developer request.";
+  }
+  
   try {
-    const ai = getAIInstance();
-    const contextHistory = history.length > 0 
-      ? `Recent discussion:\n${history.map(m => `${m.role}: ${m.content}`).join('\n')}\n\n`
-      : "";
-
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `${contextHistory}Query: ${message}`,
-      config: {
-        systemInstruction: "You are the Aditya University AI Assistant. Keep answers academic, professional, and helpful. Guide students through their curriculum.",
-        temperature: 0.7,
-      },
+      contents: message,
     });
-
-    return response.text || "No response received.";
+    return response.text || "No response.";
   } catch (error) {
-    const errorResult = await handleAIError(error);
-    if (errorResult === "RETRY_WITH_NEW_KEY") {
-      // Re-run the request with the newly selected key
-      return chatWithAI(message, history);
-    }
-    return errorResult;
+    return "The AI service is currently paused for maintenance.";
   }
 };
 
-export const explainWrongAnswer = async (q: string, opts: string[], correct: string, student: string) => {
+/**
+ * Explain Wrong Answer (Now provides a generic educational tip if offline)
+ */
+export const explainWrongAnswer = async (questionText: string, options: string[], correctIdx: number, studentIdx: number) => {
+  if (!isAiConfigured()) {
+    return "Academic Tip: Review the core principles of this module in your textbook. AI-powered detailed explanations are currently disabled.";
+  }
+
   try {
-    const ai = getAIInstance();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Question: ${q}\nCorrect: ${correct}\nStudent Choice: ${student}`,
-      config: {
-        systemInstruction: "Briefly explain why the correct answer is logically superior. Encourage the student.",
-      }
+      contents: `Question: ${questionText}\nCorrect: ${options[correctIdx]}`,
+      config: { systemInstruction: "Explain the answer briefly." }
     });
-    return response.text || "Explanation currently unavailable.";
+    return response.text || "Consult faculty for details.";
   } catch (error) {
-    return await handleAIError(error);
+    return "Detailed AI explanation is offline.";
   }
 };
 
+/**
+ * Generate AI Questions (Returns static samples if offline)
+ */
 export const generateAIQuestions = async (topic: string, count: number = 5) => {
+  if (!isAiConfigured()) {
+    return [
+      {
+        text: `Sample question about ${topic}? (AI Generator Offline)`,
+        options: ["Option A", "Option B", "Option C", "Option D"],
+        correctAnswer: 0
+      }
+    ];
+  }
+
   try {
-    const ai = getAIInstance();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: `Create ${count} academic questions about ${topic}.`,
+      contents: `Generate ${count} questions about ${topic}`,
       config: {
-        systemInstruction: "Return high-quality academic questions in strict JSON format.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -108,15 +79,13 @@ export const generateAIQuestions = async (topic: string, count: number = 5) => {
               text: { type: Type.STRING },
               options: { type: Type.ARRAY, items: { type: Type.STRING } },
               correctAnswer: { type: Type.INTEGER }
-            },
-            required: ["text", "options", "correctAnswer"]
+            }
           }
         }
       }
     });
     return response.text ? JSON.parse(response.text) : null;
   } catch (error) {
-    await handleAIError(error);
     return null;
   }
 };

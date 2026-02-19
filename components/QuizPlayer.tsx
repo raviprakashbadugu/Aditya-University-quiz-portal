@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Quiz, QuizAttempt } from '../types.ts';
+import { explainWrongAnswer } from '../services/gemini.ts';
 
 interface QuizPlayerProps {
   quiz: Quiz;
@@ -14,16 +15,11 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onComplete, onCanc
   const [answers, setAnswers] = useState<number[]>(new Array(quiz.questions.length).fill(-1));
   const [timeLeft, setTimeLeft] = useState(quiz.duration * 60);
   const [feedback, setFeedback] = useState<{ idx: number, correct: boolean } | null>(null);
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [isExplaining, setIsExplaining] = useState(false);
   const [isUrgent, setIsUrgent] = useState(false);
 
   useEffect(() => {
-    if (timeLeft < 60) {
-      document.body.classList.add('bg-urgent');
-      setIsUrgent(true);
-    } else {
-      document.body.classList.add('bg-focus');
-    }
-
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -35,10 +31,9 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onComplete, onCanc
       });
     }, 1000);
 
-    return () => {
-      document.body.classList.remove('bg-urgent', 'bg-focus');
-      clearInterval(timer);
-    };
+    if (timeLeft < 60) setIsUrgent(true);
+
+    return () => clearInterval(timer);
   }, [timeLeft]);
 
   const handleOptionSelect = (optionIndex: number) => {
@@ -51,12 +46,31 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onComplete, onCanc
     newAnswers[currentQuestionIndex] = optionIndex;
     setAnswers(newAnswers);
 
-    setTimeout(() => {
-      if (currentQuestionIndex < quiz.questions.length - 1) {
-        setFeedback(null);
-        setCurrentQuestionIndex(prev => prev + 1);
-      }
-    }, 1200);
+    // If it's the last question, don't auto-advance so they can see feedback
+    if (currentQuestionIndex < quiz.questions.length - 1) {
+      setTimeout(() => {
+        if (!isExplaining) {
+          setFeedback(null);
+          setAiExplanation(null);
+          setCurrentQuestionIndex(prev => prev + 1);
+        }
+      }, 2500);
+    }
+  };
+
+  const handleExplain = async () => {
+    if (!feedback || isExplaining) return;
+    setIsExplaining(true);
+    const q = quiz.questions[currentQuestionIndex];
+    const explanation = await explainWrongAnswer(q.text, q.options, q.correctAnswer, feedback.idx);
+    setAiExplanation(explanation);
+    setIsExplaining(false);
+  };
+
+  const nextQuestion = () => {
+    setFeedback(null);
+    setAiExplanation(null);
+    setCurrentQuestionIndex(prev => prev + 1);
   };
 
   const handleSubmit = () => {
@@ -98,7 +112,7 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onComplete, onCanc
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tighter">{quiz.title}</h2>
           <div className="flex items-center gap-3 mt-2">
-            <span className="text-blue-600 font-black text-sm uppercase tracking-widest">Question {currentQuestionIndex + 1}</span>
+            <span className="text-blue-600 font-black text-sm uppercase tracking-widest">Item {currentQuestionIndex + 1}</span>
             <span className="text-slate-300">|</span>
             <span className="text-slate-400 font-bold text-xs uppercase tracking-widest">{quiz.questions.length} total</span>
           </div>
@@ -107,13 +121,11 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onComplete, onCanc
           <div className={`text-4xl font-black font-mono px-6 py-4 rounded-[1.5rem] border-2 transition-all duration-700 ${isUrgent ? 'bg-red-50 border-red-500 text-red-600 animate-pulse' : 'bg-white border-slate-200 text-blue-600 shadow-sm'}`}>
             {formatTime(timeLeft)}
           </div>
-          <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400 mt-3 font-black">Time Limit</span>
         </div>
       </div>
 
-      <div className="glass-morphism p-12 rounded-[3rem] min-h-[480px] flex flex-col border-slate-200 shadow-xl relative overflow-hidden bg-white/90">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 blur-3xl rounded-full -mr-32 -mt-32"></div>
-        <div className="mb-12 relative">
+      <div className="glass-morphism p-12 rounded-[3rem] min-h-[500px] flex flex-col border-slate-200 shadow-xl relative overflow-hidden bg-white/95">
+        <div className="mb-12">
           <h3 className="text-2xl font-black leading-tight mb-12 text-slate-800">
             {currentQuestion.text}
           </h3>
@@ -124,11 +136,9 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onComplete, onCanc
               
               let feedbackClass = "border-slate-100 bg-slate-50 hover:border-blue-200 text-slate-600";
               if (feedback) {
-                if (isCorrectAnswer) feedbackClass = "feedback-correct border-green-500 text-green-700";
-                else if (isSelected) feedbackClass = "feedback-incorrect border-red-500 text-red-700";
+                if (isCorrectAnswer) feedbackClass = "border-green-500 bg-green-50 text-green-700 shadow-lg shadow-green-100";
+                else if (isSelected) feedbackClass = "border-red-500 bg-red-50 text-red-700 shadow-lg shadow-red-100";
                 else feedbackClass = "opacity-30 grayscale";
-              } else if (isSelected) {
-                feedbackClass = "border-blue-500 bg-blue-50 text-blue-700 animate-pulse-border";
               }
 
               return (
@@ -138,45 +148,67 @@ export const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onComplete, onCanc
                   onClick={() => handleOptionSelect(idx)}
                   className={`group w-full text-left p-6 rounded-[1.5rem] border-2 transition-all transform active:scale-[0.99] flex items-center ${feedbackClass}`}
                 >
-                  <span className={`w-12 h-12 flex items-center justify-center rounded-2xl mr-6 font-black text-sm transition-all ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>
+                  <span className={`w-12 h-12 flex items-center justify-center rounded-2xl mr-6 font-black text-sm ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
                     {String.fromCharCode(65 + idx)}
                   </span>
                   <span className="text-lg font-bold">{option}</span>
-                  {feedback && isCorrectAnswer && (
-                    <svg className="ml-auto w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                  )}
-                  {feedback && isSelected && !isCorrectAnswer && (
-                    <svg className="ml-auto w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                  )}
                 </button>
               );
             })}
           </div>
         </div>
 
+        {feedback && (
+          <div className="mt-8 animate-slideUp">
+            {!aiExplanation ? (
+              <button 
+                onClick={handleExplain}
+                disabled={isExplaining}
+                className="w-full py-4 rounded-2xl border-2 border-blue-100 bg-blue-50 text-blue-600 font-black text-xs uppercase tracking-widest hover:bg-blue-100 transition-all flex items-center justify-center gap-3"
+              >
+                {isExplaining ? (
+                  <><div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div> AI Thinking...</>
+                ) : (
+                  <>✨ Why is this the answer?</>
+                )}
+              </button>
+            ) : (
+              <div className="p-6 bg-slate-900 text-white rounded-[2rem] text-sm leading-relaxed relative animate-fadeIn">
+                 <div className="flex items-center gap-2 mb-3 text-blue-400 font-black text-[10px] uppercase tracking-widest">
+                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+                   AI Tutor Explanation
+                 </div>
+                 {aiExplanation}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mt-auto flex justify-between items-center pt-8 border-t border-slate-100">
           <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">
-            {Math.round(progress)}% Progress Recorded
+            {Math.round(progress)}% Complete
           </p>
           
-          {currentQuestionIndex === quiz.questions.length - 1 && feedback && (
-            <button
-              onClick={handleSubmit}
-              className="px-14 py-4 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-green-100 hover:scale-105 active:scale-95"
-            >
-              Finish Session
-            </button>
+          {feedback && (
+            <div className="flex gap-4">
+               {currentQuestionIndex < quiz.questions.length - 1 ? (
+                <button
+                  onClick={nextQuestion}
+                  className="px-10 py-4 rounded-2xl bg-slate-900 text-white font-black text-sm uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl"
+                >
+                  Next Item
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubmit}
+                  className="px-14 py-4 rounded-2xl bg-green-600 text-white font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-green-100"
+                >
+                  Submit Session
+                </button>
+              )}
+            </div>
           )}
         </div>
-      </div>
-
-      <div className="mt-10 flex justify-center">
-        <button 
-          onClick={onCancel}
-          className="text-slate-400 hover:text-red-600 font-black text-[10px] uppercase tracking-[0.3em] transition-all py-3 px-8 rounded-2xl hover:bg-red-50"
-        >
-          Terminate Assessment
-        </button>
       </div>
     </div>
   );

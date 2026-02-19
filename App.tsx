@@ -5,8 +5,7 @@ import { MOCK_QUIZZES } from './constants.tsx';
 import { Auth } from './components/Auth.tsx';
 import { QuizPlayer } from './components/QuizPlayer.tsx';
 import { QuizEditor } from './components/QuizEditor.tsx';
-import { AIChatBox } from './components/AIChatBox.tsx';
-import { IconDashboard, IconStats, IconLogout, IconLibrary, IconAdmin } from './components/Icons.tsx';
+import { IconDashboard, IconStats, IconLogout, IconLibrary, IconAdmin, IconRobot } from './components/Icons.tsx';
 import { db } from './services/db.ts';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -14,11 +13,11 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
-  const [view, setView] = useState<'dashboard' | 'admin' | 'quiz' | 'stats' | 'editor' | 'library'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'admin' | 'quiz' | 'stats' | 'editor' | 'library' | 'ai-assistant'>('dashboard');
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
-  const [aiEnabled, setAiEnabled] = useState(true);
+  const [aiEnabled, setAiEnabled] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -39,7 +38,6 @@ const App: React.FC = () => {
         setQuizzes(dbQuizzes.length ? dbQuizzes : MOCK_QUIZZES);
         setAttempts(dbAttempts);
         
-        // Load AI status from local storage or DB
         const savedAiStatus = localStorage.getItem('au_ai_enabled');
         if (savedAiStatus !== null) setAiEnabled(savedAiStatus === 'true');
 
@@ -107,7 +105,7 @@ const App: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Verifying Academic Session...</p>
+        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">Aditya Portal Syncing...</p>
       </div>
     </div>
   );
@@ -124,7 +122,7 @@ const App: React.FC = () => {
     <div className="min-h-screen flex flex-col md:flex-row">
       <nav className="w-full md:w-72 glass border-r border-slate-200 p-8 flex flex-col gap-8 sticky top-0 md:h-screen z-50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-white">A</div>
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-white shadow-lg shadow-blue-100">A</div>
           <div>
             <span className="font-extrabold text-lg tracking-tight block">Aditya Univ</span>
             <span className="text-[9px] uppercase font-black text-blue-600 tracking-widest">{currentUser.role} PORTAL</span>
@@ -149,6 +147,16 @@ const App: React.FC = () => {
           <button onClick={() => setView('stats')} className={`flex items-center gap-4 p-4 rounded-2xl font-bold transition-all ${view === 'stats' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}>
             <IconStats className="w-5 h-5" /> Analytics
           </button>
+
+          <div className="pt-4 mt-4 border-t border-slate-100">
+            <button 
+              onClick={() => setView('ai-assistant')} 
+              className={`flex items-center gap-4 p-4 rounded-2xl font-bold transition-all w-full text-left ${view === 'ai-assistant' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-100'}`}
+            >
+              <IconRobot className="w-5 h-5" /> AI Assistant
+              <span className="ml-auto text-[7px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-black uppercase">Beta</span>
+            </button>
+          </div>
         </div>
 
         <div className="mt-auto pt-6 border-t border-slate-200">
@@ -190,9 +198,9 @@ const App: React.FC = () => {
               <div className="flex gap-4">
                  <button 
                   onClick={toggleAi}
-                  className={`px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all border ${aiEnabled ? 'bg-green-50 text-green-600 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}
+                  className={`px-6 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all border ${aiEnabled ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
                 >
-                  AI Status: {aiEnabled ? 'Active' : 'Offline'}
+                  AI Features: {aiEnabled ? 'Requested' : 'Offline'}
                 </button>
                 <button onClick={() => { setEditingQuiz(undefined); setView('editor'); }} className="px-8 py-4 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all">Create New Quiz</button>
               </div>
@@ -201,11 +209,11 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 gap-8 mb-12">
                <div className="p-8 bg-blue-600 rounded-[2.5rem] text-white shadow-2xl shadow-blue-100 flex flex-col md:flex-row justify-between items-center gap-6">
                  <div>
-                    <h3 className="text-2xl font-black mb-2">Academic Control Panel</h3>
-                    <p className="opacity-80 text-sm font-medium">Protect your API and manage curriculum from here.</p>
+                    <h3 className="text-2xl font-black mb-2">Institutional Configuration</h3>
+                    <p className="opacity-80 text-sm font-medium">Manage curriculum and AI module toggles.</p>
                  </div>
                  <div className="flex items-center gap-4 bg-white/10 p-4 rounded-2xl border border-white/20">
-                    <span className="text-[10px] font-black uppercase tracking-widest">Privacy Guard</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Toggle AI Option</span>
                     <div onClick={toggleAi} className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${aiEnabled ? 'bg-green-400' : 'bg-slate-400'}`}>
                       <div className={`w-4 h-4 bg-white rounded-full transition-transform ${aiEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
                     </div>
@@ -218,7 +226,7 @@ const App: React.FC = () => {
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
                     <th className="p-6 text-[10px] font-black uppercase text-slate-400">Curriculum Module</th>
-                    <th className="p-6 text-[10px] font-black uppercase text-slate-400 text-right">Database Control</th>
+                    <th className="p-6 text-[10px] font-black uppercase text-slate-400 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -260,9 +268,43 @@ const App: React.FC = () => {
               <div className="glass p-10 rounded-[3rem] bg-blue-600 text-white flex flex-col justify-center shadow-2xl shadow-blue-200">
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-2">Aggregate Proficiency</p>
                 <h2 className="text-8xl font-black">{statsData.length ? Math.round(statsData.reduce((a,b)=>a+b.score,0)/statsData.length) : 0}%</h2>
-                <p className="text-sm mt-6 opacity-80 leading-relaxed font-medium">Your current standing across all verified Aditya University modules.</p>
+                <p className="text-sm mt-6 opacity-80 leading-relaxed font-medium">Your current standing across all Aditya University modules.</p>
               </div>
             </div>
+          </div>
+        )}
+
+        {view === 'ai-assistant' && (
+          <div className="max-w-4xl mx-auto text-center py-20 animate-slideUp">
+             <div className="w-24 h-24 bg-slate-900 text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl">
+               <IconRobot className="w-12 h-12" />
+             </div>
+             <h1 className="text-5xl font-black mb-6 tracking-tighter">AI Tutor Assistant</h1>
+             <div className="glass p-10 rounded-[3rem] border border-slate-200 bg-white/80 max-w-2xl mx-auto">
+                <p className="text-slate-600 font-bold mb-8">
+                  The Aditya University AI ChatBox has been removed as an active feature and kept as a development option. 
+                </p>
+                <div className="p-6 bg-blue-50 border border-blue-100 rounded-2xl text-left">
+                  <h4 className="font-black text-blue-600 uppercase text-[10px] tracking-widest mb-3">Developer Note:</h4>
+                  <ul className="text-sm text-slate-600 space-y-2">
+                    <li className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5"></div>
+                      Functional connectivity to Gemini API has been stubbed.
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5"></div>
+                      UI Placeholder is active for future conversational logic.
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5"></div>
+                      Toggle this feature in the Faculty Console.
+                    </li>
+                  </ul>
+                </div>
+                <button className="mt-10 px-10 py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">
+                  System Paused
+                </button>
+             </div>
           </div>
         )}
 
@@ -284,8 +326,6 @@ const App: React.FC = () => {
           </div>
         )}
       </main>
-
-      {aiEnabled && <AIChatBox />}
     </div>
   );
 };
