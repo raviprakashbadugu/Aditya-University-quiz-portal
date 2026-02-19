@@ -6,12 +6,12 @@ import process from 'process';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   
-  // Support both standard naming and the user's custom secret name
+  // Prioritize MY_API_KEY from the user's secret, fallback to standard API_KEY
   const apiKey = env.MY_API_KEY || env.API_KEY || "";
 
   return {
     plugins: [react()],
-    base: '', // Empty string ensures relative paths for all deployments
+    base: '', 
     define: {
       'process.env.API_KEY': JSON.stringify(apiKey)
     },

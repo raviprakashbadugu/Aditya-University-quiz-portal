@@ -20,6 +20,18 @@ export const AIChatBox: React.FC = () => {
     }
   }, [messages, isLoading]);
 
+  const handleOpenKeySelector = async () => {
+    if ((window as any).aistudio) {
+      try {
+        await (window as any).aistudio.openSelectKey();
+        // Clear auth error message if it was the last message
+        setMessages(prev => prev.filter(m => !m.content.includes("AUTHENTICATION_REQUIRED") && !m.content.includes("Security Check")));
+      } catch (e) {
+        console.error("Key selection failed", e);
+      }
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -30,12 +42,20 @@ export const AIChatBox: React.FC = () => {
 
     try {
       const response = await chatWithAI(input, messages);
-      const aiMsg: ChatMessage = { role: 'assistant', content: response };
-      setMessages(prev => [...prev, aiMsg]);
+      
+      if (response === "AUTHENTICATION_REQUIRED") {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: "Security Check: The campus AI session needs a valid key. Please click the 'Key' icon above to authenticate with your own academic key." 
+        }]);
+      } else {
+        const aiMsg: ChatMessage = { role: 'assistant', content: response };
+        setMessages(prev => [...prev, aiMsg]);
+      }
     } catch (err) {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: "Sorry, I encountered an error connecting to the campus server. Please try again." 
+        content: "Sorry, the campus AI server is currently unreachable. Please try again later." 
       }]);
     } finally {
       setIsLoading(false);
@@ -47,12 +67,27 @@ export const AIChatBox: React.FC = () => {
       {isOpen ? (
         <div className="bg-white rounded-3xl h-[500px] flex flex-col shadow-2xl overflow-hidden border border-slate-200 animate-slideUp">
           <div className="bg-blue-600 p-5 flex justify-between items-center text-white">
-            <h3 className="font-bold flex items-center gap-3">
-              <IconRobot className="w-5 h-5 text-white" /> AI Assistant
-            </h3>
-            <button onClick={() => setIsOpen(false)} className="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
+            <div className="flex items-center gap-3">
+              <IconRobot className="w-5 h-5 text-white" />
+              <div className="flex flex-col">
+                <span className="font-bold text-sm">Aditya AI Assistant</span>
+                <span className="text-[9px] uppercase tracking-widest opacity-70">Academic Support</span>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={handleOpenKeySelector}
+                title="Configure AI Key"
+                className="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+              </button>
+              <button onClick={() => setIsOpen(false)} className="bg-white/10 hover:bg-white/20 p-2 rounded-xl transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
           </div>
           
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-slate-50">
@@ -61,8 +96,8 @@ export const AIChatBox: React.FC = () => {
                 <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                    <IconRobot className="w-6 h-6 text-blue-600" />
                 </div>
-                <p className="text-sm font-bold text-slate-500">How can I assist your studies today?</p>
-                <p className="text-[10px] mt-2 text-slate-400 uppercase tracking-widest">Aditya Academic Help</p>
+                <p className="text-sm font-bold text-slate-600">Ask me about your courses!</p>
+                <p className="text-[10px] mt-2 text-slate-400 uppercase tracking-[0.2em]">Verified Academic Engine</p>
               </div>
             )}
             {messages.map((m, i) => (
